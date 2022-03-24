@@ -4,9 +4,9 @@ This debian based docker image runs CUPS printer server and was specifically bui
 
 * https://github.com/pdewacht/brlaser
 
-# Use
+# Run
 `docker run -d --restart always -p 631:631 -v $(pwd):/etc/cups bassmeets/rpi-docker-cups:main`
-`
 
-## port
-`631` Port exposed and accessable in browser
+## access
+* Port exposed and accessable in browser `631`
+* Username: `admin` password: `admin`
