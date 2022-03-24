@@ -2,18 +2,14 @@
 ARG ARCH=amd64
 FROM $ARCH/debian:buster-slim
 
-# args
-ARG VCS_REF
-ARG BUILD_DATE
-
-# environment
-ENV ADMIN_PASSWORD=admin
-
 # install packages
 RUN apt-get update \
   && apt-get install -y \
   sudo \
+  usbutils \
+  whois \
   cups \
+  cups-client \
   cups-bsd \
   cups-filters \
   foomatic-db-compressed-ppds \
@@ -22,38 +18,24 @@ RUN apt-get update \
   hpijs-ppds \
   hp-ppd \
   hplip \
+  smbclient \
   printer-driver-brlaser \
+  printer-driver-cups-pdf \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
-# add print user
-RUN adduser --home /home/admin --shell /bin/bash --gecos "admin" --disabled-password admin \
-  && adduser admin sudo \
-  && adduser admin lp \
-  && adduser admin lpadmin
+# Add user and disable sudo password check
+RUN useradd \
+  --groups=sudo,lp,lpadmin \
+  --create-home \
+  --home-dir=/home/print \
+  --shell=/bin/bash \
+  --password=$(mkpasswd print) \
+  print \
+&& sed -i '/%sudo[[:space:]]/ s/ALL[[:space:]]*$/NOPASSWD:ALL/' /etc/sudoers
 
-# disable sudo password checking
-RUN echo 'admin ALL=(ALL:ALL) ALL' >> /etc/sudoers
+# Copy the default configuration file
+COPY --chown=root:lp cupsd.conf /etc/cups/cupsd.conf
 
-# enable access to CUPS
-RUN /usr/sbin/cupsd \
-  && while [ ! -f /var/run/cups/cupsd.pid ]; do sleep 1; done \
-  && cupsctl --remote-admin --remote-any --share-printers \
-  && kill $(cat /var/run/cups/cupsd.pid) \
-  && echo "ServerAlias *" >> /etc/cups/cupsd.conf
-
-# copy /etc/cups for skeleton usage
-RUN cp -rp /etc/cups /etc/cups-skel
-
-# entrypoint
-ADD docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-ENTRYPOINT [ "bash" ]
-
-# default command
-CMD ["cupsd", "-f"]
-
-# volumes
-VOLUME ["/etc/cups"]
-
-# ports
-EXPOSE 631
+# Default shell
+CMD ["/usr/sbin/cupsd", "-f"]
